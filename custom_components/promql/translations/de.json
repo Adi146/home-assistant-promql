@@ -1,0 +1,24 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "PromQL einrichten",
+                "data": {
+                    "name": "Name",
+                    "host": "Host",
+                    "query": "Query",
+                    "unit_of_measurement": "Einheit",
+                    "verify_ssl": "SSL-Zertifikat überprüfen"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbindung fehlgeschlagen",
+            "invalid_query": "Ungültiger Query",
+            "unknown": "Unbekannter Fehler"
+        },
+        "abort": {
+            "already_configured": "Gerät ist bereits konfiguriert"
+        }
+    }
+}
