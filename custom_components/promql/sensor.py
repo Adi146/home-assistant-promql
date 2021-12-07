@@ -13,7 +13,13 @@ from homeassistant.const import (
     CONF_UNIT_OF_MEASUREMENT,
 )
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    PROMETHEUS_METRIC_KEY,
+    PROMETHEUS_VALUE_KEY,
+    PROMETHEUS_JOB_KEY,
+    PROMETHEUS_INSTANCE_KEY,
+)
 from . import requestData
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,11 +44,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     await coordinator.async_config_entry_first_refresh()
 
     async_add_entities(
-        MyEntity(coordinator, entry, idx) for idx, ent in enumerate(coordinator.data)
+        PromQLSensor(coordinator, entry, idx)
+        for idx, ent in enumerate(coordinator.data)
     )
 
 
-class MyEntity(CoordinatorEntity, SensorEntity):
+class PromQLSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry, idx):
         super().__init__(coordinator)
         self._entry_id = entry.entry_id
@@ -56,6 +63,9 @@ class MyEntity(CoordinatorEntity, SensorEntity):
 
     @property
     def name(self) -> str:
+        if self._getInstanceHost() is None:
+            return self._name
+
         return f"{self._getInstanceHost()} {self._name}"
 
     @property
@@ -68,6 +78,9 @@ class MyEntity(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        if self._getInstance() is None:
+            return None
+
         return DeviceInfo(
             identifiers={(DOMAIN, self._getInstance())},
             name=self._getInstanceHost(),
@@ -77,13 +90,18 @@ class MyEntity(CoordinatorEntity, SensorEntity):
         return self.coordinator.data[self._idx]
 
     def _getMetric(self) -> dict:
-        return self._getData()["metric"]
+        return self._getData()[PROMETHEUS_METRIC_KEY]
 
     def _getValue(self) -> str:
-        return self._getData()["value"]
+        return self._getData()[PROMETHEUS_VALUE_KEY]
+
+    def _getJob(self) -> str:
+        return self._getMetric().get(PROMETHEUS_JOB_KEY)
 
     def _getInstance(self) -> str:
-        return self._getMetric()["instance"]
+        return self._getMetric().get(PROMETHEUS_INSTANCE_KEY)
 
     def _getInstanceHost(self) -> str:
+        if self._getInstance() is None:
+            return None
         return self._getInstance().split(":")[0]
