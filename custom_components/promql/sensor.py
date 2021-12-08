@@ -1,13 +1,12 @@
 from datetime import timedelta
 import logging
 
+from homeassistant.core import callback
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.const import (
     CONF_NAME,
     CONF_UNIT_OF_MEASUREMENT,
@@ -41,25 +40,37 @@ async def async_setup_entry(hass, entry, async_add_entities):
         update_interval=timedelta(seconds=15),
     )
 
+    sensors = {}
+
+    @callback
+    def async_data_updated():
+        for data in coordinator.data:
+            unique_id = generate_unique_id(entry.entry_id, data[PROMETHEUS_METRIC_KEY])
+
+            if unique_id in sensors:
+                sensors[unique_id].setData(data)
+            else:
+                newSensor = PromQLSensor(entry, unique_id, data)
+
+                sensors[unique_id] = newSensor
+                async_add_entities([newSensor])
+
+    coordinator.async_add_listener(async_data_updated)
+
     await coordinator.async_config_entry_first_refresh()
 
-    async_add_entities(
-        PromQLSensor(coordinator, entry, idx)
-        for idx, ent in enumerate(coordinator.data)
-    )
+
+def generate_unique_id(entry_id, metric):
+    return f"{entry_id}_{'_'.join(metric.values())}"
 
 
-class PromQLSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, coordinator, entry, idx):
-        super().__init__(coordinator)
+class PromQLSensor(SensorEntity):
+    def __init__(self, entry, unique_id, data):
         self._entry_id = entry.entry_id
-        self._idx = idx
         self._name = entry.data[CONF_NAME]
         self._attr_unit_of_measurement = entry.data.get(CONF_UNIT_OF_MEASUREMENT)
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self._entry_id}_{self._idx}"
+        self._attr_unique_id = unique_id
+        self._data = data
 
     @property
     def name(self) -> str:
@@ -86,8 +97,16 @@ class PromQLSensor(CoordinatorEntity, SensorEntity):
             name=self._getInstanceHost(),
         )
 
+    @property
+    def should_poll(self) -> bool:
+        return False
+
     def _getData(self) -> dict:
-        return self.coordinator.data[self._idx]
+        return self._data
+
+    def setData(self, data):
+        self._data = data
+        self.async_write_ha_state()
 
     def _getMetric(self) -> dict:
         return self._getData()[PROMETHEUS_METRIC_KEY]
