@@ -44,6 +44,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     @callback
     def async_data_updated():
+        updated_sensors = []
         for data in coordinator.data:
             unique_id = generate_unique_id(entry.entry_id, data[PROMETHEUS_METRIC_KEY])
 
@@ -54,6 +55,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
                 sensors[unique_id] = newSensor
                 async_add_entities([newSensor])
+
+            updated_sensors.append(sensors[unique_id])
+
+        for sensor in sensors.values():
+            if sensor not in updated_sensors:
+                sensor.setData(None)
 
     coordinator.async_add_listener(async_data_updated)
 
@@ -74,7 +81,7 @@ class PromQLSensor(SensorEntity):
 
     @property
     def name(self) -> str:
-        if self._getInstanceHost() is None:
+        if self._getData() is None or self._getInstanceHost() is None:
             return self._name
 
         return f"{self._getInstanceHost()} {self._name}"
@@ -105,7 +112,9 @@ class PromQLSensor(SensorEntity):
         return self._data
 
     def setData(self, data):
-        self._data = data
+        if data is not None:
+            self._data = data
+        self._attr_available = data is not None
         self.async_write_ha_state()
 
     def _getMetric(self) -> dict:
