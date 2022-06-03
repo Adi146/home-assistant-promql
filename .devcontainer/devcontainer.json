@@ -3,9 +3,6 @@
   "image": "ghcr.io/ludeeus/devcontainer/generic:stable",
   "postCreateCommand": "container install",
   "context": "..",
-  "mounts": [
-    "source=${env:HOME}/.kube/config,target=/config/config,type=bind,consistency=cached"
-  ],
   "appPort": [
     "8123:8123"
   ],

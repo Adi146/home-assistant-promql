@@ -2,7 +2,7 @@ from datetime import timedelta
 import logging
 
 from homeassistant.core import callback
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
@@ -76,6 +76,7 @@ class PromQLSensor(SensorEntity):
         self._entry_id = entry.entry_id
         self._name = entry.data[CONF_NAME]
         self._attr_unit_of_measurement = entry.data.get(CONF_UNIT_OF_MEASUREMENT)
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_unique_id = unique_id
         self._data = data
 
